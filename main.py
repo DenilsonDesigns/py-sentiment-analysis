@@ -1,8 +1,11 @@
 from urllib.request import urlopen, Request
 from bs4 import BeautifulSoup
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import pandas as pd
+import matplotlib.pyplot as plt
 
 finviz_url = 'https://finviz.com/quote.ashx?t='
-tickers = ['AMZN', 'AMD', 'FB']
+tickers = ['AMZN', 'GOOG', 'FB']
 
 news_tables = {}
 
@@ -17,9 +20,7 @@ for ticker in tickers:
     news_table = html.find(id='news-table')
     news_tables[ticker] = news_table
 
-    break
 
-# print(news_tables)
 parsed_data = []
 
 for ticker, news_table in news_tables.items():
@@ -35,4 +36,19 @@ for ticker, news_table in news_tables.items():
 
         parsed_data.append([ticker, date, time, title])
 
-print(parsed_data)
+
+df = pd.DataFrame(parsed_data, columns=['ticker', 'date', 'time', 'title'])
+vader = SentimentIntensityAnalyzer()
+def f(title): return vader.polarity_scores(title)['compound']
+
+
+df['compound'] = df['title'].apply(f)
+df['date'] = pd.to_datetime(df.date).dt.date
+plt.figure(figsize=(10, 8))
+
+mean_df = df.groupby(['ticker', 'date']).mean()
+mean_df = mean_df.unstack()
+mean_df = mean_df.xs('compound', axis="columns").transpose()
+mean_df.plot(kind='bar')
+plt.show()
+print(mean_df)
